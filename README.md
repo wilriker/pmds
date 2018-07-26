@@ -5,6 +5,10 @@ This tool will take an arbitrary amount of GCode files and scans it for print mo
 
 It can be used to determine the "Print move distance" parameter at https://wilriker.github.io/microstep-calculator
 
+For more information on this topic see also
+* https://forum.duet3d.com/topic/6156/guide-how-to-select-extruder-microstep-setting
+* https://forum.duet3d.com/topic/6100/extruder-linearity/
+
 Usage
 ---
 Run `pmds -h` to get a short help output
