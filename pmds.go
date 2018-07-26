@@ -20,6 +20,8 @@ const (
 func splitIntoParams(line string) (x, y, e float64) {
 	wordScanner := bufio.NewScanner(strings.NewReader(line))
 	wordScanner.Split(bufio.ScanWords)
+	x = math.MaxFloat64
+	y = math.MaxFloat64
 	var err error
 
 	for wordScanner.Scan() {
@@ -103,7 +105,7 @@ func main() {
 			x, y, e := splitIntoParams(line)
 
 			// Non-head move, probably retract/unretract
-			if x == 0 || y == 0 {
+			if x == math.MaxFloat64 && y == math.MaxFloat64 {
 				continue
 			}
 
