@@ -20,27 +20,24 @@ const (
 func splitIntoParams(line string) (x, y, e float64) {
 	wordScanner := bufio.NewScanner(strings.NewReader(line))
 	wordScanner.Split(bufio.ScanWords)
+
+	// Initialize with impossible values to recognize if neither X nor Z have been moved
 	x = math.MaxFloat64
 	y = math.MaxFloat64
+
 	var err error
 
 	for wordScanner.Scan() {
 		switch string(wordScanner.Text()[0]) {
 		case "X":
 			x, err = strconv.ParseFloat(wordScanner.Text()[1:], 64)
-			if err != nil {
-				panic(err)
-			}
 		case "Y":
 			y, err = strconv.ParseFloat(wordScanner.Text()[1:], 64)
-			if err != nil {
-				panic(err)
-			}
 		case "E":
 			e, err = strconv.ParseFloat(wordScanner.Text()[1:], 64)
-			if err != nil {
-				panic(err)
-			}
+		}
+		if err != nil {
+			panic(err)
 		}
 	}
 	return x, y, e
@@ -52,13 +49,17 @@ func calcDistance(prevX, prevY, x, y float64) float64 {
 	return math.Sqrt((xDist * xDist) + (yDist * yDist))
 }
 
+func isMove(line string) bool {
+	return strings.HasPrefix(line, "G1 ") || strings.HasPrefix(line, "G0 ")
+}
+
 func main() {
 
-	var verbose, summary bool
+	var verbose, summaryOnly bool
 	var maxMove int64
 
 	flag.BoolVar(&verbose, "verbose", false, "Verbose output, i.e. one line for each move")
-	flag.BoolVar(&summary, "summary", false, "Show only summary (this overrules verbose mode)")
+	flag.BoolVar(&summaryOnly, "summary", false, "Show only summary (this overrules verbose mode)")
 	flag.Int64Var(&maxMove, "maxMove", 300, "Maximum distance the longest axis can move in mm")
 	flag.Parse()
 
@@ -68,37 +69,42 @@ func main() {
 	}
 
 	multiFile := len(flag.Args()) > 1
+
 	var hTotal *hdrhistogram.Histogram
-	if multiFile || summary {
+	if multiFile || summaryOnly {
 		hTotal = hdrhistogram.New(0, maxMove*intMultiplier, 5)
 	}
+
 	for _, file := range flag.Args() {
+
+		// Open file and handle error or defer closing at the end of the loop
 		f, err := os.Open(file)
 		if err != nil {
 			log.Fatalln(err)
 			os.Exit(2)
 		}
 		defer f.Close()
+
 		lineScanner := bufio.NewScanner(f)
 		var prevX, prevY float64
+		var h *hdrhistogram.Histogram
+		if !summaryOnly {
+			h = hdrhistogram.New(0, maxMove*intMultiplier, 5)
+		}
 
-		// Find first valid line
+		// Find first valid line to get at start position
 		for lineScanner.Scan() {
 			line := lineScanner.Text()
-			if strings.HasPrefix(line, "G1 ") || strings.HasPrefix(line, "G0 ") {
+			if isMove(line) {
 				prevX, prevY, _ = splitIntoParams(line)
 				break
 			}
-		}
-		var h *hdrhistogram.Histogram
-		if !summary {
-			h = hdrhistogram.New(0, maxMove*intMultiplier, 5)
 		}
 
 		// Scan remaining lines
 		for lineScanner.Scan() {
 			line := lineScanner.Text()
-			if !(strings.HasPrefix(line, "G1 ") || strings.HasPrefix(line, "G0 ")) {
+			if !isMove(line) {
 				continue
 			}
 
@@ -113,17 +119,17 @@ func main() {
 			if e > 0 {
 				distance := calcDistance(prevX, prevY, x, y)
 				if distance == 0 {
-					log.Println("Distance is", distance, " -> Skipping")
+					log.Println("Found extruder move without head movement -> Skipping")
 					continue
 				}
-				if !summary {
+				if !summaryOnly {
 					h.RecordValue(int64(distance * intMultiplier))
 				}
-				if multiFile || summary {
+				if multiFile || summaryOnly {
 					hTotal.RecordValue(int64(distance * intMultiplier))
 				}
 
-				if verbose && !summary {
+				if verbose && !summaryOnly {
 					fmt.Println(distance, "->", e)
 				}
 			}
@@ -132,14 +138,14 @@ func main() {
 			prevY = y
 		}
 
-		if !summary {
+		if !summaryOnly {
 			printResult(file, h)
 			if multiFile {
 				fmt.Println("-------")
 			}
 		}
 	}
-	if multiFile || summary {
+	if multiFile || summaryOnly {
 		printResult("Summary", hTotal)
 	}
 }
