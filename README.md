@@ -6,7 +6,7 @@ This tool will take an arbitrary amount of GCode files and scans it for print mo
 It can be used to determine the "Print move distance" parameter at https://wilriker.github.io/microstep-calculator
 
 Usage
-===
+---
 Run `pmds -h` to get a short help output
 ```
 Usage of ./pmds:
