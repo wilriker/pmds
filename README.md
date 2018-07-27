@@ -11,6 +11,8 @@ For more information on this topic see also
 
 Usage
 ---
+**Important Note**: This tool only works correctly with GCode sliced with relative extrusions.
+
 Run `pmds -h` to get a short help output
 ```
 Usage of ./pmds:
